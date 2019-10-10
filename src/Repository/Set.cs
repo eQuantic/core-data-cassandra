@@ -1,7 +1,5 @@
 ﻿using Cassandra;
 using eQuantic.Core.Data.Repository;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System;
 using System.Collections;
 using System.Collections.Generic;

@@ -4,7 +4,6 @@ using eQuantic.Core.Data.Repository.Sql;
 using eQuantic.Core.Linq;
 using eQuantic.Core.Linq.Extensions;
 using eQuantic.Core.Linq.Specification;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -5,7 +5,6 @@ using eQuantic.Core.Linq.Specification;
 using System;
 using System.Linq;
 using System.Linq.Expressions;
-using Z.EntityFramework.Plus;
 
 namespace eQuantic.Core.Data.EntityFramework.Repository.Write
 {

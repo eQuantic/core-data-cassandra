@@ -11,8 +11,6 @@ using eQuantic.Core.Data.Repository.Sql;
 using eQuantic.Core.Linq;
 using eQuantic.Core.Linq.Extensions;
 using eQuantic.Core.Linq.Specification;
-using Microsoft.EntityFrameworkCore;
-using Z.EntityFramework.Plus;
 
 namespace eQuantic.Core.Data.EntityFramework.Repository
 {
