@@ -15,22 +15,21 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
     public abstract class UnitOfWork : IQueryableUnitOfWork
     {
         public static int IsMigrating = 0;
-        private readonly ISession _session;
         private readonly List<CqlCommand> _commands = new List<CqlCommand>();
+        private ISession _session;
 
         protected UnitOfWork(ISession session)
         {
             _session = session;
         }
 
-        public virtual void Dispose()
+        public void ApplyCurrentValues<TEntity>(TEntity original, TEntity current) where TEntity : class
         {
-            _session?.Dispose();
         }
 
-        public abstract TRepository GetRepository<TRepository>() where TRepository : IRepository;
-
-        public abstract TRepository GetRepository<TRepository>(string name) where TRepository : IRepository;
+        public void Attach<TEntity>(TEntity item) where TEntity : class
+        {
+        }
 
         public void BeginTransaction()
         {
@@ -50,18 +49,6 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
             return i;
         }
 
-        public async Task<int> CommitAsync()
-        {
-            var i = 0;
-            foreach (var c in _commands)
-            {
-                await c.ExecuteAsync();
-                i++;
-            }
-            _commands.Clear();
-            return i;
-        }
-
         public int CommitAndRefreshChanges()
         {
             int changes = 0;
@@ -74,15 +61,13 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
                     changes = _context.SaveChanges();
 
                     saveFailed = false;
-
                 }
                 catch (DbUpdateConcurrencyException ex)
                 {
                     saveFailed = true;
 
                     ex.Entries.ToList()
-                              .ForEach(entry => entry.OriginalValues.SetValues(entry.GetDatabaseValues()));
-
+                        .ForEach(entry => entry.OriginalValues.SetValues(entry.GetDatabaseValues()));
                 }
             } while (saveFailed);
 
@@ -101,7 +86,6 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
                     changes = await _context.SaveChangesAsync();
 
                     saveFailed = false;
-
                 }
                 catch (DbUpdateConcurrencyException ex)
                 {
@@ -109,16 +93,142 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
 
                     ex.Entries.ToList()
                         .ForEach(entry => entry.OriginalValues.SetValues(entry.GetDatabaseValues()));
-
                 }
             } while (saveFailed);
 
             return changes;
         }
 
+        public async Task<int> CommitAsync()
+        {
+            var i = 0;
+            foreach (var c in _commands)
+            {
+                await c.ExecuteAsync();
+                i++;
+            }
+            _commands.Clear();
+            return i;
+        }
+
+        Data.Repository.ISet<TEntity> IQueryableUnitOfWork.CreateSet<TEntity>()
+        {
+            return new Set<TEntity>(GetSession());
+        }
+
+        public virtual void Dispose()
+        {
+            _session?.Dispose();
+        }
+
+        public int ExecuteCommand(string cqlCommand, params object[] parameters)
+        {
+            var statement = GetSession().Prepare(cqlCommand);
+            var result = GetSession().Execute(statement.Bind(parameters));
+            return result != null ? 1 : 0;
+        }
+
+        public async Task<int> ExecuteCommandAsync(string cqlCommand, params object[] parameters)
+        {
+            var statement = GetSession().Prepare(cqlCommand);
+            var result = await GetSession().ExecuteAsync(statement.Bind(parameters));
+            return result != null ? 1 : 0;
+        }
+
+        public TResult ExecuteFunction<TResult>(string name, params object[] parameters) where TResult : class
+        {
+        }
+
+        public async Task<TResult> ExecuteFunctionAsync<TResult>(string name, params object[] parameters) where TResult : class
+        {
+        }
+
+        public int ExecuteProcedure(string name, params object[] parameters)
+        {
+            return ExecuteCommand(GetQueryProcedure(name, parameters) + ";");
+        }
+
+        public async Task<int> ExecuteProcedureAsync(string name, params object[] parameters)
+        {
+            return await ExecuteCommandAsync(GetQueryProcedure(name, parameters) + ";");
+        }
+
+        public IEnumerable<TEntity> ExecuteQuery<TEntity>(string cqlQuery, params object[] parameters) where TEntity : class
+        {
+            IMapper mapper = new Mapper(GetSession());
+            return mapper.Fetch<TEntity>(cqlQuery, parameters);
+        }
+
+        public IEnumerable<string> GetPendingMigrations()
+        {
+            return null;
+        }
+
+        public abstract TRepository GetRepository<TRepository>() where TRepository : IRepository;
+
+        public abstract TRepository GetRepository<TRepository>(string name) where TRepository : IRepository;
+
+        public ISession GetSession()
+        {
+            return _session;
+        }
+
+        public void LoadCollection<TEntity, TElement>(TEntity item, Expression<Func<TEntity, IEnumerable<TElement>>> navigationProperty, Expression<Func<TElement, bool>> filter = null) where TEntity : class where TElement : class
+        {
+        }
+
+        public async Task LoadCollectionAsync<TEntity, TElement>(TEntity item, Expression<Func<TEntity, IEnumerable<TElement>>> navigationProperty, Expression<Func<TElement, bool>> filter = null) where TEntity : class where TElement : class
+        {
+        }
+
+        public void LoadProperty<TEntity, TComplexProperty>(TEntity item, Expression<Func<TEntity, TComplexProperty>> selector) where TEntity : class where TComplexProperty : class
+        {
+        }
+
+        public void LoadProperty<TEntity>(TEntity item, string propertyName) where TEntity : class
+        {
+        }
+
+        public async Task LoadPropertyAsync<TEntity, TComplexProperty>(TEntity item, Expression<Func<TEntity, TComplexProperty>> selector) where TEntity : class where TComplexProperty : class
+        {
+        }
+
+        public async Task LoadPropertyAsync<TEntity>(TEntity item, string propertyName) where TEntity : class
+        {
+            await _context.Entry<TEntity>(item).Reference(propertyName).LoadAsync();
+        }
+
+        public void Reload<TEntity>(TEntity item) where TEntity : class
+        {
+        }
+
         public void RollbackChanges()
         {
             _commands.Clear();
+        }
+
+        public void SetModified<TEntity>(TEntity item) where TEntity : class
+        {
+        }
+
+        public void UpdateDatabase()
+        {
+            if (0 == Interlocked.Exchange(ref IsMigrating, 1))
+            {
+                try
+                {
+                    _context.Database.Migrate();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref IsMigrating, 0);
+                }
+            }
+        }
+
+        private string GetQueryFunction(string name, params object[] parameters)
+        {
+            return $"SELECT {name}({GetQueryParameters(parameters)} )";
         }
 
         private string GetQueryParameters(params object[] parameters)
@@ -147,132 +257,6 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
         private string GetQueryProcedure(string name, params object[] parameters)
         {
             return $"EXEC {name}{GetQueryParameters(parameters)}";
-        }
-
-        private string GetQueryFunction(string name, params object[] parameters)
-        {
-            return $"SELECT {name}({GetQueryParameters(parameters)} )";
-        }
-
-        public int ExecuteProcedure(string name, params object[] parameters)
-        {
-            return ExecuteCommand(GetQueryProcedure(name, parameters) + ";");
-        }
-
-        public async Task<int> ExecuteProcedureAsync(string name, params object[] parameters)
-        {
-            return await ExecuteCommandAsync(GetQueryProcedure(name, parameters) + ";");
-        }
-
-        public TResult ExecuteFunction<TResult>(string name, params object[] parameters) where TResult : class
-        {
-            
-        }
-
-        public async Task<TResult> ExecuteFunctionAsync<TResult>(string name, params object[] parameters) where TResult : class
-        {
-            
-        }
-
-
-        public IEnumerable<TEntity> ExecuteQuery<TEntity>(string cqlQuery, params object[] parameters) where TEntity : class
-        {
-            IMapper mapper = new Mapper(GetSession());
-            return mapper.Fetch<TEntity>(cqlQuery, parameters);
-        }
-
-        public int ExecuteCommand(string cqlCommand, params object[] parameters)
-        {
-            var statement = GetSession().Prepare(cqlCommand);
-            var result = GetSession().Execute(statement.Bind(parameters));
-            return result != null ? 1 : 0;
-        }
-
-        public async Task<int> ExecuteCommandAsync(string cqlCommand, params object[] parameters)
-        {
-            var statement = GetSession().Prepare(cqlCommand);
-            var result = await GetSession().ExecuteAsync(statement.Bind(parameters));
-            return result != null ? 1 : 0;
-        }
-
-        public void Attach<TEntity>(TEntity item) where TEntity : class
-        {
-            
-        }
-
-        public void Reload<TEntity>(TEntity item) where TEntity : class
-        {
-            
-        }
-
-        public void SetModified<TEntity>(TEntity item) where TEntity : class
-        {
-            
-        }
-
-        public void ApplyCurrentValues<TEntity>(TEntity original, TEntity current) where TEntity : class
-        {
-            
-        }
-
-        public void LoadCollection<TEntity, TElement>(TEntity item, Expression<Func<TEntity, IEnumerable<TElement>>> navigationProperty, Expression<Func<TElement, bool>> filter = null) where TEntity : class where TElement : class
-        {
-            
-        }
-
-        public async Task LoadCollectionAsync<TEntity, TElement>(TEntity item, Expression<Func<TEntity, IEnumerable<TElement>>> navigationProperty, Expression<Func<TElement, bool>> filter = null) where TEntity : class where TElement : class
-        {
-            
-        }
-
-        public void LoadProperty<TEntity, TComplexProperty>(TEntity item, Expression<Func<TEntity, TComplexProperty>> selector) where TEntity : class where TComplexProperty : class
-        {
-            
-        }
-
-        public async Task LoadPropertyAsync<TEntity, TComplexProperty>(TEntity item, Expression<Func<TEntity, TComplexProperty>> selector) where TEntity : class where TComplexProperty : class
-        {
-            
-        }
-
-        public void LoadProperty<TEntity>(TEntity item, string propertyName) where TEntity : class
-        {
-            
-        }
-
-        public async Task LoadPropertyAsync<TEntity>(TEntity item, string propertyName) where TEntity : class
-        {
-            await _context.Entry<TEntity>(item).Reference(propertyName).LoadAsync();
-        }
-
-        public void UpdateDatabase()
-        {
-            if (0 == Interlocked.Exchange(ref IsMigrating, 1))
-            {
-                try
-                {
-                    _context.Database.Migrate();
-                }
-                finally
-                {
-                    Interlocked.Exchange(ref IsMigrating, 0);
-                }
-            }
-        }
-
-        public IEnumerable<string> GetPendingMigrations()
-        {
-            return _context.Database.GetPendingMigrations();
-        }
-
-        Data.Repository.ISet<TEntity> IQueryableUnitOfWork.CreateSet<TEntity>()
-        {
-            return new Set<TEntity>(GetSession());
-        }
-
-        public ISession GetSession()
-        {
-            return _session ?? (_session = _cluster.Connect(_connectionString.DefaultKeyspace));
         }
     }
 }

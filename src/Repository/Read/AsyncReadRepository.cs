@@ -1,14 +1,17 @@
-﻿using eQuantic.Core.Data.Repository;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Threading.Tasks;
+using Cassandra.Data.Linq;
+using eQuantic.Core.Data.Repository;
 using eQuantic.Core.Data.Repository.Read;
 using eQuantic.Core.Data.Repository.Sql;
 using eQuantic.Core.Linq;
 using eQuantic.Core.Linq.Extensions;
 using eQuantic.Core.Linq.Specification;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
 
 namespace eQuantic.Core.Data.EntityFramework.Repository.Read
 {
@@ -22,52 +25,52 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
 
         public async Task<IEnumerable<TEntity>> AllMatchingAsync(ISpecification<TEntity> specification)
         {
-            return await GetSet().Where(specification.SatisfiedBy()).ToListAsync();
+            return await GetSet().Where(specification.SatisfiedBy()).ExecuteAsync();
         }
 
         public async Task<long> CountAsync()
         {
-            return await GetSet().LongCountAsync();
+            return await GetSet().Count().ExecuteAsync();
         }
 
         public async Task<long> CountAsync(ISpecification<TEntity> specification)
         {
-            return await GetSet().LongCountAsync(specification.SatisfiedBy());
+            return await GetSet().Where(specification.SatisfiedBy()).Count().ExecuteAsync();
         }
 
         public async Task<long> CountAsync(Expression<Func<TEntity, bool>> filter)
         {
-            return await GetSet().LongCountAsync(filter);
+            return await GetSet().Where(filter).Count().ExecuteAsync();
         }
 
         public async Task<IEnumerable<TEntity>> GetAllAsync()
         {
-            return await GetSet().ToListAsync();
+            return await GetSet().ExecuteAsync();
         }
 
         public async Task<IEnumerable<TEntity>> GetAllAsync(ISorting[] sortingColumns)
         {
-            return await GetSet().OrderBy(sortingColumns).ToListAsync();
+            return await ((CqlQuery<TEntity>)GetSet().OrderBy(sortingColumns)).ExecuteAsync();
         }
 
-        public async  Task<TEntity> GetAsync(TKey id)
+        public async Task<TEntity> GetAsync(TKey id)
         {
             return id != null ? await GetSet().FindAsync(id) : null;
         }
 
         public async Task<IEnumerable<TEntity>> GetFilteredAsync(Expression<Func<TEntity, bool>> filter)
         {
-            return await GetSet().Where(filter).ToListAsync();
+            return await GetSet().Where(filter).ExecuteAsync();
         }
 
         public async Task<IEnumerable<TEntity>> GetFilteredAsync(Expression<Func<TEntity, bool>> filter, ISorting[] sortColumns)
         {
-            return await GetSet().Where(filter).OrderBy(sortColumns).ToListAsync();
+            return await ((CqlQuery<TEntity>)GetSet().Where(filter).OrderBy(sortColumns)).ExecuteAsync();
         }
 
         public async Task<TEntity> GetFirstAsync(Expression<Func<TEntity, bool>> filter)
         {
-            return await GetSet().FirstOrDefaultAsync(filter);
+            return await GetSet().FirstOrDefault(filter).ExecuteAsync();
         }
 
         public async Task<IEnumerable<TEntity>> GetPagedAsync(int limit, ISorting[] sortColumns)
@@ -87,7 +90,7 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
 
         public async Task<IEnumerable<TEntity>> GetPagedAsync(int pageIndex, int pageCount, ISorting[] sortColumns)
         {
-            return await GetPagedAsync((Expression<Func<TEntity, bool>>) null, pageIndex, pageCount, sortColumns);
+            return await GetPagedAsync((Expression<Func<TEntity, bool>>)null, pageIndex, pageCount, sortColumns);
         }
 
         public async Task<IEnumerable<TEntity>> GetPagedAsync(ISpecification<TEntity> specification, int pageIndex, int pageCount, ISorting[] sortColumns)
@@ -97,27 +100,35 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
 
         public async Task<IEnumerable<TEntity>> GetPagedAsync(Expression<Func<TEntity, bool>> filter, int pageIndex, int pageCount, ISorting[] sortColumns)
         {
-            IQueryable<TEntity> query = GetSet();
+            CqlQuery<TEntity> query = GetSet();
             if (filter != null) query = query.Where(filter);
 
             if (sortColumns != null && sortColumns.Length > 0)
             {
-                query = query.OrderBy(sortColumns);
+                query = (CqlQuery<TEntity>)query.OrderBy(sortColumns);
             }
             if (pageCount > 0)
-                return await query.Skip((pageIndex - 1) * pageCount).Take(pageCount).ToListAsync();
+            {
+                int skip = (pageIndex - 1) * pageCount;
+                return await query.SetPagingState(query.SetPageSize(skip).PagingState).SetPageSize(pageCount).ExecutePagedAsync();
+            }
 
-            return await query.ToListAsync();
+            return await query.ExecuteAsync();
         }
 
         public Task<TEntity> GetSingleAsync(Expression<Func<TEntity, bool>> filter)
         {
-            return GetSet().SingleOrDefaultAsync(filter);
+            return GetSet().FirstOrDefault(filter).ExecuteAsync();
         }
 
         public Task<TEntity> GetSingleAsync(Expression<Func<TEntity, bool>> filter, ISorting[] sortingColumns)
         {
-            return GetSet().OrderBy(sortingColumns).SingleOrDefaultAsync(filter);
+            CqlQuery<TEntity> query = GetSet();
+            if (sortingColumns != null && sortingColumns.Length > 0)
+            {
+                query = (CqlQuery<TEntity>)query.OrderBy(sortingColumns);
+            }
+            return query.Where(filter).FirstOrDefault().ExecuteAsync();
         }
     }
 }

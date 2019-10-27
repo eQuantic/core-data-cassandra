@@ -1,13 +1,14 @@
-﻿using eQuantic.Core.Data.Repository;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using Cassandra.Data.Linq;
+using eQuantic.Core.Data.Repository;
 using eQuantic.Core.Data.Repository.Read;
 using eQuantic.Core.Data.Repository.Sql;
 using eQuantic.Core.Linq;
 using eQuantic.Core.Linq.Extensions;
 using eQuantic.Core.Linq.Specification;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
 
 namespace eQuantic.Core.Data.EntityFramework.Repository.Read
 {
@@ -15,10 +16,7 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
         where TUnitOfWork : IQueryableUnitOfWork
         where TEntity : class, IEntity, new()
     {
-        /// <summary>
-        /// <see cref="eQuantic.Core.Data.Repository.Read.IReadRepository{TUnitOfWork, TEntity, TKey}"/>
-        /// </summary>
-        public TUnitOfWork UnitOfWork { get; private set; }
+        private Set<TEntity> _dbSet = null;
 
         /// <summary>
         /// Create a new instance of repository
@@ -32,9 +30,14 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
             UnitOfWork = unitOfWork;
         }
 
+        /// <summary>
+        /// <see cref="eQuantic.Core.Data.Repository.Read.IReadRepository{TUnitOfWork, TEntity, TKey}"/>
+        /// </summary>
+        public TUnitOfWork UnitOfWork { get; private set; }
+
         public IEnumerable<TEntity> AllMatching(ISpecification<TEntity> specification)
         {
-            return GetSet().Where(specification.SatisfiedBy());
+            return GetSet().Where(specification.SatisfiedBy()).Execute();
         }
 
         /// <summary>
@@ -43,7 +46,7 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
         /// <returns></returns>
         public long Count()
         {
-            return GetSet().LongCount();
+            return GetSet().Count().Execute();
         }
 
         /// <summary>
@@ -53,7 +56,7 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
         /// <returns></returns>
         public long Count(ISpecification<TEntity> specification)
         {
-            return GetSet().LongCount(specification.SatisfiedBy());
+            return GetSet().Where(specification.SatisfiedBy()).Count().Execute();
         }
 
         /// <summary>
@@ -63,7 +66,7 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
         /// <returns></returns>
         public long Count(Expression<Func<TEntity, bool>> filter)
         {
-            return GetSet().LongCount(filter);
+            return GetSet().Where(filter).Count().Execute();
         }
 
         /// <summary>
@@ -81,12 +84,12 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
 
         public IEnumerable<TEntity> GetAll()
         {
-            return GetSet();
+            return GetSet().Execute();
         }
 
         public IEnumerable<TEntity> GetAll(ISorting[] sortingColumns)
         {
-            return GetSet().OrderBy(sortingColumns);
+            return ((CqlQuery<TEntity>)GetSet().OrderBy(sortingColumns)).Execute();
         }
 
         public IEnumerable<TEntity> GetFiltered(Expression<Func<TEntity, bool>> filter)
@@ -99,17 +102,17 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
             if (filter == null)
                 throw new ArgumentException("Filter expression cannot be null", nameof(filter));
 
-            var query = GetSet().Where(filter);
+            CqlQuery<TEntity> query = GetSet().Where(filter);
             if (sortColumns != null && sortColumns.Length > 0)
             {
-                query = query.OrderBy(sortColumns);
+                query = (CqlQuery<TEntity>)query.OrderBy(sortColumns);
             }
-            return query;
+            return query.Execute();
         }
 
         public TEntity GetFirst(Expression<Func<TEntity, bool>> filter)
         {
-            return GetSet().FirstOrDefault(filter);
+            return GetSet().FirstOrDefault(filter).Execute();
         }
 
         public IEnumerable<TEntity> GetPaged(int limit, ISorting[] sortColumns)
@@ -139,29 +142,31 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
 
         public IEnumerable<TEntity> GetPaged(Expression<Func<TEntity, bool>> filter, int pageIndex, int pageCount, ISorting[] sortColumns)
         {
-            IQueryable<TEntity> query = GetSet();
-            if(filter != null) query = query.Where(filter);
+            CqlQuery<TEntity> query = GetSet();
+            if (filter != null) query = query.Where(filter);
 
             if (sortColumns != null && sortColumns.Length > 0)
             {
-                query = query.OrderBy(sortColumns);
+                query = (CqlQuery<TEntity>)query.OrderBy(sortColumns);
             }
             if (pageCount > 0)
-                return query.Skip((pageIndex - 1) * pageCount).Take(pageCount);
+            {
+                int skip = (pageIndex - 1) * pageCount;
+                var pagingState = query.SetPageSize(skip).ExecutePaged().PagingState;
+                return query.SetPagingState(pagingState).SetPageSize(pageCount).ExecutePaged();
+            }
 
-            return query;
+            return query.Execute();
         }
 
         public TEntity GetSingle(Expression<Func<TEntity, bool>> filter)
         {
-            return GetSet().SingleOrDefault(filter);
+            return GetSet().FirstOrDefault(filter).Execute();
         }
-
-        private Set<TEntity> _dbset = null;
 
         protected Set<TEntity> GetSet()
         {
-            return _dbset ?? (_dbset = (Set<TEntity>)UnitOfWork.CreateSet<TEntity>());
+            return _dbSet ?? (_dbSet = (Set<TEntity>)UnitOfWork.CreateSet<TEntity>());
         }
     }
 }

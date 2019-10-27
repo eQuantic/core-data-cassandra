@@ -1,10 +1,13 @@
-﻿using eQuantic.Core.Data.Repository;
+﻿using System;
+using System.Linq;
+using System.Linq.Expressions;
+using Cassandra.Data.Linq;
+using eQuantic.Core.Data.Repository;
 using eQuantic.Core.Data.Repository.Sql;
 using eQuantic.Core.Data.Repository.Write;
 using eQuantic.Core.Linq.Specification;
 using System;
 using System.Linq;
-using System.Linq.Expressions;
 
 namespace eQuantic.Core.Data.EntityFramework.Repository.Write
 {
@@ -12,7 +15,7 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Write
         where TUnitOfWork : IQueryableUnitOfWork
         where TEntity : class, IEntity, new()
     {
-        public TUnitOfWork UnitOfWork { get; set; }
+        private Set<TEntity> _dbset = null;
 
         public WriteRepository(TUnitOfWork unitOfWork)
         {
@@ -22,15 +25,18 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Write
             UnitOfWork = unitOfWork;
         }
 
+        public TUnitOfWork UnitOfWork { get; set; }
+
         public void Add(TEntity item)
         {
             if (item != (TEntity)null)
-                GetSet().Add(item);
+                GetSet().Insert(item);
         }
 
         public int DeleteMany(Expression<Func<TEntity, bool>> filter)
         {
-            return GetSet().Where(filter).Delete();
+            GetSet().Where(filter).Delete().Execute();
+            return 0;
         }
 
         public int DeleteMany(ISpecification<TEntity> specification)
@@ -77,15 +83,14 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Write
 
         public int UpdateMany(Expression<Func<TEntity, bool>> filter, Expression<Func<TEntity, TEntity>> updateFactory)
         {
-            return GetSet().Where(filter).Update(updateFactory);
+            GetSet().Where(filter).Select(updateFactory).Update().Execute();
+            return 0;
         }
 
         public int UpdateMany(ISpecification<TEntity> specification, Expression<Func<TEntity, TEntity>> updateFactory)
         {
             return UpdateMany(specification.SatisfiedBy(), updateFactory);
         }
-
-        private Set<TEntity> _dbset = null;
 
         protected Set<TEntity> GetSet()
         {
