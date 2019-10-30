@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,7 +9,7 @@ using Cassandra.Mapping;
 using eQuantic.Core.Data.Repository;
 using eQuantic.Core.Data.Repository.Sql;
 
-namespace eQuantic.Core.Data.EntityFramework.Repository
+namespace eQuantic.Core.Data.Cassandra.Repository
 {
     public abstract class UnitOfWork : IQueryableUnitOfWork
     {
@@ -33,8 +32,8 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
 
         public void BeginTransaction()
         {
-            _transaction?.Dispose();
-            _transaction = _context.Database.BeginTransaction();
+            //_transaction?.Dispose();
+            //_transaction = _context.Database.BeginTransaction();
         }
 
         public int Commit()
@@ -56,19 +55,19 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
 
             do
             {
-                try
-                {
-                    changes = _context.SaveChanges();
+                //try
+                //{
+                //    changes = _context.SaveChanges();
 
-                    saveFailed = false;
-                }
-                catch (DbUpdateConcurrencyException ex)
-                {
-                    saveFailed = true;
+                //    saveFailed = false;
+                //}
+                //catch (DbUpdateConcurrencyException ex)
+                //{
+                //    saveFailed = true;
 
-                    ex.Entries.ToList()
-                        .ForEach(entry => entry.OriginalValues.SetValues(entry.GetDatabaseValues()));
-                }
+                //    ex.Entries.ToList()
+                //        .ForEach(entry => entry.OriginalValues.SetValues(entry.GetDatabaseValues()));
+                //}
             } while (saveFailed);
 
             return changes;
@@ -81,19 +80,19 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
 
             do
             {
-                try
-                {
-                    changes = await _context.SaveChangesAsync();
+                //try
+                //{
+                //    changes = await _context.SaveChangesAsync();
 
-                    saveFailed = false;
-                }
-                catch (DbUpdateConcurrencyException ex)
-                {
-                    saveFailed = true;
+                //    saveFailed = false;
+                //}
+                //catch (DbUpdateConcurrencyException ex)
+                //{
+                //    saveFailed = true;
 
-                    ex.Entries.ToList()
-                        .ForEach(entry => entry.OriginalValues.SetValues(entry.GetDatabaseValues()));
-                }
+                //    ex.Entries.ToList()
+                //        .ForEach(entry => entry.OriginalValues.SetValues(entry.GetDatabaseValues()));
+                //}
             } while (saveFailed);
 
             return changes;
@@ -137,10 +136,12 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
 
         public TResult ExecuteFunction<TResult>(string name, params object[] parameters) where TResult : class
         {
+            return null;
         }
 
         public async Task<TResult> ExecuteFunctionAsync<TResult>(string name, params object[] parameters) where TResult : class
         {
+            return null;
         }
 
         public int ExecuteProcedure(string name, params object[] parameters)
@@ -195,7 +196,7 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
 
         public async Task LoadPropertyAsync<TEntity>(TEntity item, string propertyName) where TEntity : class
         {
-            await _context.Entry<TEntity>(item).Reference(propertyName).LoadAsync();
+            //await _context.Entry<TEntity>(item).Reference(propertyName).LoadAsync();
         }
 
         public void Reload<TEntity>(TEntity item) where TEntity : class
@@ -217,7 +218,7 @@ namespace eQuantic.Core.Data.EntityFramework.Repository
             {
                 try
                 {
-                    _context.Database.Migrate();
+                    // _context.Database.Migrate();
                 }
                 finally
                 {

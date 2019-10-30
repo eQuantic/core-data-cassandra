@@ -6,10 +6,8 @@ using eQuantic.Core.Data.Repository;
 using eQuantic.Core.Data.Repository.Sql;
 using eQuantic.Core.Data.Repository.Write;
 using eQuantic.Core.Linq.Specification;
-using System;
-using System.Linq;
 
-namespace eQuantic.Core.Data.EntityFramework.Repository.Write
+namespace eQuantic.Core.Data.Cassandra.Repository.Write
 {
     public class WriteRepository<TUnitOfWork, TEntity, TKey> : IWriteRepository<TUnitOfWork, TEntity, TKey>
         where TUnitOfWork : IQueryableUnitOfWork
@@ -71,7 +69,8 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Write
                 UnitOfWork.Attach(item);
 
                 //set as "removed"
-                GetSet().Remove(item);
+                //var expression
+                //GetSet().Remove(item);
             }
         }
 

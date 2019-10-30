@@ -10,7 +10,7 @@ using eQuantic.Core.Linq;
 using eQuantic.Core.Linq.Extensions;
 using eQuantic.Core.Linq.Specification;
 
-namespace eQuantic.Core.Data.EntityFramework.Repository.Read
+namespace eQuantic.Core.Data.Cassandra.Repository.Read
 {
     public class ReadRepository<TUnitOfWork, TEntity, TKey> : IReadRepository<TUnitOfWork, TEntity, TKey>
         where TUnitOfWork : IQueryableUnitOfWork
@@ -52,7 +52,9 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
         /// <summary>
         /// <see cref="eQuantic.Core.Data.Repository.Read.IReadRepository{TUnitOfWork, TEntity, TKey}"/>
         /// </summary>
-        /// <param name="specification"><see cref="eQuantic.Core.Data.Repository.Read.IReadRepository{TUnitOfWork, TEntity, TKey}"/></param>
+        /// <param name="specification">
+        /// <see cref="eQuantic.Core.Data.Repository.Read.IReadRepository{TUnitOfWork, TEntity, TKey}"/>
+        /// </param>
         /// <returns></returns>
         public long Count(ISpecification<TEntity> specification)
         {
@@ -62,7 +64,9 @@ namespace eQuantic.Core.Data.EntityFramework.Repository.Read
         /// <summary>
         /// <see cref="eQuantic.Core.Data.Repository.Read.IReadRepository{TUnitOfWork, TEntity, TKey}"/>
         /// </summary>
-        /// <param name="filter"><see cref="eQuantic.Core.Data.Repository.Read.IReadRepository{TUnitOfWork, TEntity, TKey}"/></param>
+        /// <param name="filter">
+        /// <see cref="eQuantic.Core.Data.Repository.Read.IReadRepository{TUnitOfWork, TEntity, TKey}"/>
+        /// </param>
         /// <returns></returns>
         public long Count(Expression<Func<TEntity, bool>> filter)
         {

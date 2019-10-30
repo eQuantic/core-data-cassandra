@@ -10,10 +10,8 @@ using eQuantic.Core.Data.Repository.Sql;
 using eQuantic.Core.Linq;
 using eQuantic.Core.Linq.Extensions;
 using eQuantic.Core.Linq.Specification;
-using System;
-using System.Linq;
 
-namespace eQuantic.Core.Data.EntityFramework.Repository.Read
+namespace eQuantic.Core.Data.Cassandra.Repository.Read
 {
     public class AsyncReadRepository<TUnitOfWork, TEntity, TKey> : ReadRepository<TUnitOfWork, TEntity, TKey>, IAsyncReadRepository<TUnitOfWork, TEntity, TKey>
         where TUnitOfWork : IQueryableUnitOfWork
