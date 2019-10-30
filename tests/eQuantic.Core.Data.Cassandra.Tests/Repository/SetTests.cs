@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
 using Cassandra;
@@ -12,6 +13,7 @@ using Xunit;
 
 namespace eQuantic.Core.Data.Cassandra.Tests.Repository
 {
+    [ExcludeFromCodeCoverage]
     public class SetTests
     {
         private Mock<ISession> mockSession;

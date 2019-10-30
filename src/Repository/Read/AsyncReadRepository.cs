@@ -53,7 +53,7 @@ namespace eQuantic.Core.Data.Cassandra.Repository.Read
 
         public async Task<TEntity> GetAsync(TKey id)
         {
-            return id != null ? await GetSet().FindAsync(id) : null;
+            return id != null ? await GetSet().Find(id).ExecuteAsync() : null;
         }
 
         public async Task<IEnumerable<TEntity>> GetFilteredAsync(Expression<Func<TEntity, bool>> filter)
@@ -108,7 +108,8 @@ namespace eQuantic.Core.Data.Cassandra.Repository.Read
             if (pageCount > 0)
             {
                 int skip = (pageIndex - 1) * pageCount;
-                return await query.SetPagingState(query.SetPageSize(skip).PagingState).SetPageSize(pageCount).ExecutePagedAsync();
+                var pagingState = (await query.SetPageSize(skip).ExecutePagedAsync()).CurrentPagingState;
+                return await query.SetPagingState(pagingState).SetPageSize(pageCount).ExecutePagedAsync();
             }
 
             return await query.ExecuteAsync();

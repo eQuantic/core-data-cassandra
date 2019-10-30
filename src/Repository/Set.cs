@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Data.Linq;
 using Cassandra.Mapping;
@@ -17,16 +16,10 @@ namespace eQuantic.Core.Data.Cassandra.Repository
         {
         }
 
-        public TEntity Find<TKey>(TKey id)
+        public CqlQuerySingleElement<TEntity> Find<TKey>(TKey id)
         {
             var expression = GetKeyExpression(id);
-            return this.Where(expression).FirstOrDefault().Execute();
-        }
-
-        public async Task<TEntity> FindAsync<TKey>(TKey id)
-        {
-            var expression = GetKeyExpression(id);
-            return await this.Where(expression).FirstOrDefault().ExecuteAsync();
+            return this.Where(expression).FirstOrDefault();
         }
 
         public virtual Expression<Func<TEntity, bool>> GetKeyExpression<TKey>(TKey key)

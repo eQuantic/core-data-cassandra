@@ -83,7 +83,7 @@ namespace eQuantic.Core.Data.Cassandra.Repository.Read
 
         public TEntity Get(TKey id)
         {
-            return id != null ? GetSet().Find(id) : null;
+            return id != null ? GetSet().Find(id).Execute() : null;
         }
 
         public IEnumerable<TEntity> GetAll()
@@ -156,7 +156,7 @@ namespace eQuantic.Core.Data.Cassandra.Repository.Read
             if (pageCount > 0)
             {
                 int skip = (pageIndex - 1) * pageCount;
-                var pagingState = query.SetPageSize(skip).ExecutePaged().PagingState;
+                var pagingState = query.SetPageSize(skip).ExecutePaged().CurrentPagingState;
                 return query.SetPagingState(pagingState).SetPageSize(pageCount).ExecutePaged();
             }
 

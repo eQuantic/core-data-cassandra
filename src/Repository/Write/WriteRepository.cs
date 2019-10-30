@@ -57,27 +57,28 @@ namespace eQuantic.Core.Data.Cassandra.Repository.Write
 
         public void Modify(TEntity item)
         {
-            if (item != (TEntity)null)
-                UnitOfWork.SetModified(item);
+            if (item == (TEntity)null) return;
+
+            UnitOfWork.SetModified(item);
         }
 
         public void Remove(TEntity item)
         {
-            if (item != (TEntity)null)
-            {
-                //attach item if not exist
-                UnitOfWork.Attach(item);
+            if (item == (TEntity)null) return;
 
-                //set as "removed"
-                //var expression
-                //GetSet().Remove(item);
-            }
+            //attach item if not exist
+            UnitOfWork.Attach(item);
+
+            var key = GetSet().GetKeyValue<TKey>(item);
+            var expression = GetSet().GetKeyExpression(key);
+            GetSet().Where(expression).Delete().Execute();
         }
 
         public void TrackItem(TEntity item)
         {
-            if (item != (TEntity)null)
-                UnitOfWork.Attach<TEntity>(item);
+            if (item == (TEntity)null) return;
+
+            UnitOfWork.Attach<TEntity>(item);
         }
 
         public int UpdateMany(Expression<Func<TEntity, bool>> filter, Expression<Func<TEntity, TEntity>> updateFactory)

@@ -21,9 +21,10 @@ namespace eQuantic.Core.Data.Cassandra.Repository
         {
         }
 
-        public Task AddAsync(TEntity item)
+        public async Task AddAsync(TEntity item)
         {
-            throw new NotImplementedException();
+            if (item == null) return;
+            await GetSet().Insert(item).ExecuteAsync();
         }
 
         public async Task<IEnumerable<TEntity>> AllMatchingAsync(ISpecification<TEntity> specification)
@@ -142,7 +143,7 @@ namespace eQuantic.Core.Data.Cassandra.Repository
         {
             if (id != null)
             {
-                var item = await GetSet().FindAsync(id);
+                var item = await GetSet().Find(id).ExecuteAsync();
                 if (item != null)
                 {
                     if (loadProperties != null && loadProperties.Length > 0)

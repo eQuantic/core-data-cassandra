@@ -146,7 +146,7 @@ namespace eQuantic.Core.Data.Cassandra.Repository
         {
             if (id != null)
             {
-                var item = GetSet().Find(id);
+                var item = GetSet().Find(id).Execute();
                 if (item != null)
                 {
                     if (loadProperties != null && loadProperties.Length > 0)

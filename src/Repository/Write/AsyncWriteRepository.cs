@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Threading.Tasks;
 using Cassandra.Data.Linq;
 using eQuantic.Core.Data.Repository;
@@ -18,9 +19,10 @@ namespace eQuantic.Core.Data.Cassandra.Repository.Write
         {
         }
 
-        public Task AddAsync(TEntity item)
+        public async Task AddAsync(TEntity item)
         {
-            throw new NotImplementedException();
+            if (item == null) return;
+            await GetSet().Insert(item).ExecuteAsync();
         }
 
         public async Task<int> DeleteManyAsync(Expression<Func<TEntity, bool>> filter)
@@ -36,7 +38,22 @@ namespace eQuantic.Core.Data.Cassandra.Repository.Write
 
         public Task MergeAsync(TEntity persisted, TEntity current)
         {
-            throw new NotImplementedException();
+            var entityType = typeof(TEntity);
+
+#if NETSTANDARD1_6 || NETSTANDARD2_0
+            var properties = entityType.GetTypeInfo().GetProperties().Where(prop => prop.CanRead && prop.CanWrite);
+#else
+            var properties = entityType.GetProperties().Where(prop => prop.CanRead && prop.CanWrite);
+#endif
+
+            foreach (var prop in properties)
+            {
+                var value = prop.GetValue(current, null);
+                if (value != null)
+                    prop.SetValue(persisted, value, null);
+            }
+
+            return null;
         }
 
         public Task ModifyAsync(TEntity item)
@@ -44,9 +61,16 @@ namespace eQuantic.Core.Data.Cassandra.Repository.Write
             throw new NotImplementedException();
         }
 
-        public Task RemoveAsync(TEntity item)
+        public async Task RemoveAsync(TEntity item)
         {
-            throw new NotImplementedException();
+            if (item == (TEntity)null) return;
+
+            //attach item if not exist
+            UnitOfWork.Attach(item);
+
+            var key = GetSet().GetKeyValue<TKey>(item);
+            var expression = GetSet().GetKeyExpression(key);
+            await GetSet().Where(expression).Delete().ExecuteAsync();
         }
 
         public async Task<int> UpdateManyAsync(Expression<Func<TEntity, bool>> filter, Expression<Func<TEntity, TEntity>> updateFactory)
