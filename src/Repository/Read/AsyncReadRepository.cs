@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Cassandra.Data.Linq;
 using eQuantic.Core.Data.Repository;
 using eQuantic.Core.Data.Repository.Read;
-using eQuantic.Core.Data.Repository.Sql;
 using eQuantic.Core.Linq;
 using eQuantic.Core.Linq.Extensions;
 using eQuantic.Core.Linq.Specification;

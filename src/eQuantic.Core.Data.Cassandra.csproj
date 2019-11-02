@@ -4,14 +4,14 @@
   <PropertyGroup>
     <Description>Core Data library for Apache Cassandra</Description>
     <AssemblyTitle>eQuantic.Core.Data.Cassandra</AssemblyTitle>
-    <Version>1.0.0-dev0028</Version>
+    <Version>1.0.0-beta1</Version>
     <Authors>eQuantic Systems</Authors>
     <TargetFrameworks>net46;net461;net462;netstandard1.6;netstandard2.0</TargetFrameworks>
     <AssemblyName>eQuantic.Core.Data.Cassandra</AssemblyName>
     <PackageId>eQuantic.Core.Data.Cassandra</PackageId>
     <PackageTags>eQuantic;Core;Data;Library;Repository;Pattern</PackageTags>
     <PackageReleaseNotes>Entity ignorant persistance with Repository Pattern for Apache Cassandra</PackageReleaseNotes>
-    
+
     <PackageProjectUrl>https://github.com/eQuantic/core-data-cassandra</PackageProjectUrl>
     <PackageOutputPath>../artifacts/</PackageOutputPath>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
@@ -29,7 +29,7 @@
 
   <ItemGroup>
     <PackageReference Include="eQuantic.Core" Version="1.4.10.4" />
-    <PackageReference Include="eQuantic.Core.Data" Version="2.0.0.1" />
+    <PackageReference Include="eQuantic.Core.Data" Version="2.0.0.4" />
     <PackageReference Include="MSBump" Version="2.3.2" PrivateAssets="All" />
     <PackageReference Include="CassandraCSharpDriver" Version="3.11.0" />
   </ItemGroup>

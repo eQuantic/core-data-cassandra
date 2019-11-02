@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Threading.Tasks;
 using Cassandra.Data.Linq;
 using eQuantic.Core.Data.Repository;
-using eQuantic.Core.Data.Repository.Sql;
 using eQuantic.Core.Linq;
 using eQuantic.Core.Linq.Extensions;
 using eQuantic.Core.Linq.Specification;
@@ -23,7 +23,7 @@ namespace eQuantic.Core.Data.Cassandra.Repository
         public async Task AddAsync(TEntity item)
         {
             if (item == null) return;
-            await GetSet().Insert(item).ExecuteAsync();
+            await AppendOrExecuteCommandAsync(GetSet().Insert(item));
         }
 
         public async Task<IEnumerable<TEntity>> AllMatchingAsync(ISpecification<TEntity> specification)
@@ -58,8 +58,8 @@ namespace eQuantic.Core.Data.Cassandra.Repository
         /// <returns></returns>
         public async Task<int> DeleteManyAsync(Expression<Func<TEntity, bool>> filter)
         {
-            var rowSet = await GetSet().Where(filter).Delete().ExecuteAsync();
-            return rowSet.Count();
+            await AppendOrExecuteCommandAsync(GetSet().Where(filter).Delete());
+            return 0;
         }
 
         /// <summary>
@@ -171,25 +171,46 @@ namespace eQuantic.Core.Data.Cassandra.Repository
             return await ((CqlQuery<TEntity>)GetSet().OrderBy(sortingColumns)).Where(filter).FirstOrDefault().ExecuteAsync();
         }
 
-        public Task MergeAsync(TEntity persisted, TEntity current)
+        public async Task MergeAsync(TEntity persisted, TEntity current)
         {
-            throw new NotImplementedException();
+            var entityType = typeof(TEntity);
+
+#if NETSTANDARD1_6 || NETSTANDARD2_0
+            var properties = entityType.GetTypeInfo().GetProperties().Where(prop => prop.CanRead && prop.CanWrite);
+#else
+            var properties = entityType.GetProperties().Where(prop => prop.CanRead && prop.CanWrite);
+#endif
+
+            foreach (var prop in properties)
+            {
+                var value = prop.GetValue(current, null);
+                if (value != null)
+                    prop.SetValue(persisted, value, null);
+            }
+
+            var key = GetSet().GetKeyValue<TKey>(persisted);
+            var expression = GetSet().GetKeyExpression(key);
+
+            await AppendOrExecuteCommandAsync(GetSet().Where(expression).Select(o => persisted).Update());
         }
 
-        public Task ModifyAsync(TEntity item)
+        public async Task ModifyAsync(TEntity item)
         {
-            throw new NotImplementedException();
+            if (item == (TEntity)null) return;
+
+            var key = GetSet().GetKeyValue<TKey>(item);
+            var expression = GetSet().GetKeyExpression(key);
+
+            await AppendOrExecuteCommandAsync(GetSet().Where(expression).Select(o => item).Update());
         }
 
         public async Task RemoveAsync(TEntity item)
         {
             if (item == (TEntity)null) return;
 
-            UnitOfWork.Attach(item);
-
             var key = GetSet().GetKeyValue<TKey>(item);
             var expression = GetSet().GetKeyExpression(key);
-            await GetSet().Where(expression).Delete().ExecuteAsync();
+            await AppendOrExecuteCommandAsync(GetSet().Where(expression).Delete());
         }
 
         /// <summary>
@@ -204,8 +225,8 @@ namespace eQuantic.Core.Data.Cassandra.Repository
         /// <returns></returns>
         public async Task<int> UpdateManyAsync(Expression<Func<TEntity, bool>> filter, Expression<Func<TEntity, TEntity>> updateFactory)
         {
-            var rowSet = await GetSet().Where(filter).Select(updateFactory).Update().ExecuteAsync();
-            return rowSet.Count();
+            await AppendOrExecuteCommandAsync(GetSet().Where(filter).Select(updateFactory).Update());
+            return 0;
         }
 
         /// <summary>
@@ -221,6 +242,13 @@ namespace eQuantic.Core.Data.Cassandra.Repository
         public async Task<int> UpdateManyAsync(ISpecification<TEntity> specification, Expression<Func<TEntity, TEntity>> updateFactory)
         {
             return await UpdateManyAsync(specification.SatisfiedBy(), updateFactory);
+        }
+
+        private async Task AppendOrExecuteCommandAsync(CqlCommand command)
+        {
+            var unitOfWork = UnitOfWork as UnitOfWork;
+            if (unitOfWork != null) unitOfWork.AppendCommand(command);
+            else await command.ExecuteAsync();
         }
     }
 }
